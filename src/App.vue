@@ -2,10 +2,20 @@
   <div class="shade">
     <div class="blackboard">
       <div class="form">
+        <p v-if="errors.length">
+          <ul class="message">
+            <li class="error" v-for="error in errors">{{ error }}</li>
+          </ul>
+        </p>
+        <p v-if="success !== null && success !== ''">
+          <ul class="message">
+            <li class="success">{{ success }}</li>
+          </ul>
+        </p>
         <div class="form-group">
           <label for="txtname">Suspeito: </label>
           <select v-model="suspeitoSelecionado">
-            <option value>Selecione o suspeito</option>
+            <option value>Selecione...</option>
             <option v-for="suspeito in suspeitos" v-bind:value="suspeito.Id">
               {{ suspeito.Nome }}
             </option>
@@ -14,7 +24,7 @@
         <div class="form-group">
           <label>Local: </label>
           <select v-model="localSelecionado">
-            <option value>Selecione o local</option>
+            <option value>Selecione...</option>
             <option v-for="local in locais" v-bind:value="local.Id">
               {{ local.Nome }}
             </option>
@@ -23,13 +33,14 @@
         <div class="form-group">
           <label>Arma: </label>
           <select v-model="armaSelecionada">
-            <option value>Selecione a arma</option>
+            <option value>Selecione...</option>
             <option v-for="arma in armas" v-bind:value="arma.Id">
               {{ arma.Nome }}
             </option>
           </select>
         </div>
-        <button type="submit" @click="submit()">Enviar</button>
+        <button id="btnEnviar" v-show="btnVisivel" type="submit" @click="submit()">Enviar</button>
+        <button id="btnRestart" v-show="!btnVisivel" type="button" @click="restart()">Jogar Novamente</button>
       </div>
     </div>
   </div>
@@ -39,13 +50,16 @@
 export default {
   data () {
     return {
-      misterioId: '',
+      misterioId: null,
       suspeitos: [],
       locais: [],
       armas: [],
       suspeitoSelecionado: '',
       localSelecionado: '',
-      armaSelecionada: ''
+      armaSelecionada: '',
+      errors:[],
+      success: null,
+      btnVisivel: true
     }
   },
   created() {
@@ -67,18 +81,40 @@ export default {
   },
   methods: {
     submit: function() {
-      this.$http.post('https://handson.eniwine.com.br/api/descubraoassassino',
-        { IdSuspeito: this.suspeitoSelecionado, IdArma: this.armaSelecionada, IdLocal: this.localSelecionado, IdMisterio: this.misterioId }
-      ).then(res => console.log(res))
+      if(this.suspeitoSelecionado && this.localSelecionado && this.armaSelecionada) {
+        this.$http.post('https://handson.eniwine.com.br/api/descubraoassassino',
+          { IdSuspeito: this.suspeitoSelecionado, IdArma: this.armaSelecionada, IdLocal: this.localSelecionado, IdMisterio: this.misterioId }
+        )
+        .then(res => res.json())
+        .then(function(res) {
+          let codRetorno = JSON.parse(res);
+
+          if (codRetorno === 0) {
+            this.success = 'Parabéns! Você acertou!';
+            this.btnVisivel = false;
+          } else if (codRetorno === 1) {
+            this.errors.push('Assassino incorreto');
+          } else if (codRetorno === 2) {
+            this.errors.push('Local incorreto');
+          } else if (codRetorno === 3) {
+            this.errors.push('Arma incorreta');
+          }
+        })
+      }
+      this.errors = [];
+      this.success = ''
+      if(!this.suspeitoSelecionado) this.errors.push("Selecione o suspeito");
+      if(!this.localSelecionado) this.errors.push("Selecione o local");
+      if(!this.armaSelecionada) this.errors.push("Selecione a arma");
+    },
+    restart: function() {
+      location.reload()
     }
   }
 }
 </script>
 
 <style>
-.form-group select {
-  width: 100%;
-}
 
 body {
   height: 100%;
@@ -193,5 +229,23 @@ button:hover, button:focus {
   background: rgba(238, 238, 238, 0.4);
   color: rgba(238, 238, 238, 0.3);
   text-shadow: none;
+}
+
+.message {
+  font-family: 'Permanent Marker', cursive;
+}
+
+.error {
+  font-size: 0.8em;
+  color: red;
+}
+
+.success {
+  font-size: 1.3em;
+  color: green;
+}
+
+.form-group select {
+  width: 100%;
 }
 </style>
